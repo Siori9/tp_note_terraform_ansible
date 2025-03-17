@@ -1,0 +1,7 @@
+---
+# handlers file for bdd
+- name: Reboot PostgreSQL
+  become: yes
+  service:
+    name: postgresql@14-main
+    state: restarted

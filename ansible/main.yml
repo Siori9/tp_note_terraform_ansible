@@ -1,0 +1,14 @@
+---
+- name: Bdd playbook
+  hosts: host-bdd
+  vars:
+    bdd_password: cytech
+    data: Clara
+  roles:
+    - bdd
+
+- name: App playbook
+  hosts: host-app
+
+  roles:
+    - app

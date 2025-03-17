@@ -29,3 +29,26 @@ module "db" {
     proxmox = proxmox
   }
 }
+
+resource "local_file" "ansible_inventory" {
+  filename = "../ansible/ansible_inventory.ini"
+  content  = <<-EOT
+    [app]
+    host-app ansible_host=${split("/", var.app_instance_ip)[0]} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+
+    [bdd]
+    host-bdd ansible_host=${split("/", var.bdd_instance_ip)[0]} ansible_user=ubuntu ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+  EOT
+
+  depends_on = [module.app, module.db]
+}
+
+resource "null_resource" "run_ansible" {
+  provisioner "local-exec" {
+    command = "cd ../ansible && ansible-playbook -i ansible_inventory.ini main.yml"
+  }
+
+  depends_on = [
+    local_file.ansible_inventory
+  ]
+}

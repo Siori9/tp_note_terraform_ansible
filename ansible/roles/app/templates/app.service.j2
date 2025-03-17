@@ -1,0 +1,10 @@
+[Unit]
+Description=App
+
+[Service]
+User=cytech_usr
+WorkingDirectory={{home_path}}/app
+ExecStart={{ home_path }}/venv/bin/python app.py
+
+[Install]
+WantedBy=multi-user.target

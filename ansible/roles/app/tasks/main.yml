@@ -1,0 +1,80 @@
+---
+- name: Installing FastAPI
+  block:
+    - name: Installing Python
+      become: true
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-venv
+          - acl
+    - name: Installing FastAPI
+      ansible.builtin.pip:
+        name: fastapi
+
+- name: Create group
+  ansible.builtin.group:
+    name: cytech_grp
+    state: present
+  become: true
+
+- name: Create user
+  ansible.builtin.user:
+    name: cytech_usr
+    group: cytech_grp
+    password: cytech
+    generate_ssh_key: yes
+    ssh_key_bits: 2048
+    ssh_key_file: .ssh/id_rsa
+  become: true
+
+- name: Run in python virtual environment
+  block:
+    - name: Copy app folder
+      ansible.builtin.copy:
+        src: ../files/app
+        dest: "{{home_path}}"
+        mode: 'a+x'
+      become: yes
+      become_user: cytech_usr
+    - name: Create virtual environment
+      ansible.builtin.pip:
+        requirements: "{{home_path}}/app/requirements.txt"
+        virtualenv: "{{home_path}}/venv"
+        virtualenv_command: "python3 -m venv"
+      become: true
+      become_user: cytech_usr
+
+
+- name: Start service
+  block:
+    - name: Apply template
+      ansible.builtin.template:
+        src: ../templates/app.service.j2
+        dest: /etc/systemd/system/app.service
+      become: true
+
+    - name: Force systemd to reload configs
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      become: true
+
+    - name: Setup services
+      become: true
+      ansible.builtin.systemd_service:
+        name: app
+        state: started
+        enabled: yes
+
+- name: Call api
+  block:
+    - name: API request
+      ansible.builtin.uri:
+        url: http://localhost:8080
+        return_content: true
+      register: output
+
+    - name: Show result API request
+      ansible.builtin.debug:
+        var: output

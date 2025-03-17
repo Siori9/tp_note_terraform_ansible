@@ -1,0 +1,77 @@
+---
+- name: Installing postgresql
+  become: yes
+  ansible.builtin.apt:
+    name:
+      - postgresql
+      - postgresql-contrib
+      - python3-psycopg2
+      - acl
+
+- name: Create group
+  ansible.builtin.group:
+    name: cytech_grp
+    state: present
+  become: true
+
+- name: Create user
+  ansible.builtin.user:
+    name: cytech_usr
+    group: cytech_grp
+    password: cytech
+    generate_ssh_key: yes
+    ssh_key_bits: 2048
+    ssh_key_file: .ssh/id_rsa
+  become: true
+
+- name: Create a new database
+  block:
+    - name: Create PostgreSQL user
+      community.postgresql.postgresql_user:
+        name: cytech_usr
+        password: "{{bdd_password}}"
+        role_attr_flags: CREATEDB
+      become: true
+      become_user: postgres
+
+    - name: Create database and assign ownership
+      community.postgresql.postgresql_db:
+        name: cytech
+        owner: cytech_usr
+      become: true
+      become_user: postgres
+
+- name: Give access
+  ansible.builtin.blockinfile:
+    path: /etc/postgresql/14/main/pg_hba.conf
+    block: |
+      host    all             all             127.0.0.1/32            md5
+      host    all             all             192.168.100.132/32   md5
+    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+  become: true
+  notify: Reboot PostgreSQL
+
+- name: Changing listen addresses
+  ansible.builtin.lineinfile:
+    path: /etc/postgresql/14/main/postgresql.conf
+    search_string: 'listen_addresses = '
+    line: "listen_addresses = '*'"
+  become: true
+  notify: Reboot PostgreSQL
+
+- name: Copy SQL script
+  ansible.builtin.copy:
+    src: ../files/script.sql
+    dest: /tmp/script.sql
+
+- name: Execute script SQL
+  community.postgresql.postgresql_script:
+    db: cytech
+    path: /tmp/script.sql
+    positional_args:
+      - "{{data}}"
+    encoding: UTF-8
+    login_user: cytech_usr
+    login_password: "{{bdd_password}}"
+  become: true
+  become_user: cytech_usr

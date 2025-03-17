@@ -1,0 +1,6 @@
+fastapi
+psycopg2-binary
+pydantic
+typing
+asyncpg
+uvicorn
